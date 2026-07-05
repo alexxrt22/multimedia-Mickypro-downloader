@@ -1,8 +1,8 @@
 import os
+from pytubefix import YouTube  # Tu librería de confianza que sí te funciona
 import streamlit as st
-import yt_dlp
 
-# 1. Configuración de la página
+# 1. Configuración visual de la ventana del navegador
 st.set_page_config(
     page_title="YouTube Pro Downloader",
     page_icon="🚀",
@@ -10,22 +10,19 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# 2. Inyección de CSS Avanzado para diseño Premium (Modo Oscuro)
+# 2. Inyección de CSS para diseño Premium moderno (Modo Oscuro)
 st.markdown(
     """
     <style>
-    /* Ocultar elementos por defecto de Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Configuración del fondo global */
     .stApp {
         background: linear-gradient(135deg, #0f0f11 0%, #1a1a24 100%);
         font-family: 'Inter', sans-serif;
     }
     
-    /* Contenedor principal tipo Tarjeta Flotante */
     .main-card {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -37,7 +34,6 @@ st.markdown(
         text-align: center;
     }
     
-    /* Título principal con degradado encendido */
     .main-title {
         font-size: 42px !important;
         font-weight: 800 !important;
@@ -48,14 +44,8 @@ st.markdown(
         letter-spacing: -1px;
     }
     
-    /* Subtítulo elegante */
-    .subtitle {
-        font-size: 16px;
-        color: #b3b3b3;
-        margin-bottom: 35px;
-    }
+    .subtitle { font-size: 16px; color: #b3b3b3; margin-bottom: 35px; }
     
-    /* Caja de información del video */
     .info-box {
         background: rgba(255, 255, 255, 0.02);
         border-left: 4px solid #FF0000;
@@ -65,7 +55,6 @@ st.markdown(
         text-align: left;
     }
     
-    /* Personalización del botón de Streamlit vía CSS */
     div.stButton > button {
         background: linear-gradient(90deg, #FF0000 0%, #CC0000 100%) !important;
         color: white !important;
@@ -81,7 +70,6 @@ st.markdown(
         box-shadow: 0 6px 20px rgba(255,0,0,0.4) !important;
     }
     
-    /* Botón secundario para descargar archivo */
     div.stDownloadButton > button {
         background: linear-gradient(90deg, #28a745 0%, #218838 100%) !important;
         color: white !important;
@@ -101,7 +89,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# 3. Renderizado de la Interfaz Estilizada
+# 3. Encabezado de la página web
 st.markdown(
     """
     <div class="main-card">
@@ -111,100 +99,91 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+st.write("")
 
-st.write("")  # Espaciador técnico
-
-# Contenedor de entrada de datos
-url_video = st.text_input(
+# Entrada de datos directo en la ventana de Chrome
+enlace = st.text_input(
     "Pega el enlace multimedia aquí:",
-    placeholder="https://www.youtube.com/watch?v=...",
+    placeholder="https://youtube.com...",
 )
 
-# Selector de formato elegante integrado en la interfaz
+# Selector elegante para elegir el formato antes de descargar
 tipo_descarga = st.selectbox(
     "¿Qué formato deseas obtener?",
     ["Video en Alta Calidad (MP4)", "Solo Audio (MP3)"],
 )
 
 
-# 4. Motor de descarga optimizado con simulación de usuario seguro
-def procesar_video(url, es_audio):
-    # Parámetros para engañar al servidor de YouTube haciéndonos pasar por Chrome
-    opciones_seguras = {
-        "quiet": True,
-        "no_warnings": True,
-        "nocheckcertificate": True,
-        "ignoreerrors": False,
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "referer": "https://www.youtube.com/",
-    }
+# 4. Función de descarga exacta basada en tu lógica original de pytubefix
+def procesar_descarga(url_link, es_audio):
+    yt = YouTube(url_link)
 
     if es_audio:
-        ydl_opts = {
-            **opciones_seguras,
-            "format": "bestaudio/best",
-            "outtmpl": "audio_descargado.mp3",
-        }
+        # Extrae solo la pista de sonido más alta
+        stream = yt.streams.get_audio_only()
+        nombre_archivo = "audio_descargado.mp3"
     else:
-        ydl_opts = {
-            **opciones_seguras,
-            "format": "best",
-            "outtmpl": "video_descargado.mp4",
-        }
+        # Tu comando original exacto para máxima calidad
+        stream = yt.streams.get_highest_resolution()
+        nombre_archivo = "video_descargado.mp4"
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
-        metadata = {
-            "title": info.get("title", "Contenido de YouTube"),
-            "duration": info.get("duration", 0),
-            "uploader": info.get("uploader", "Desconocido"),
-            "filename": filename,
-        }
-        return filename, metadata
+    # Descarga el archivo de forma local temporal
+    stream.download(filename=nombre_archivo)
+
+    metadata = {
+        "title": yt.title,
+        "author": yt.author,
+        "length": yt.length,
+        "filename": nombre_archivo,
+    }
+    return nombre_archivo, metadata
 
 
-# 5. Lógica de ejecución e interfaz de respuesta
-if url_video:
+# 5. Ejecución e interfaz de respuesta
+if enlace:
     if st.button("🔥 PROCESAR ENLACE", use_container_width=True):
         es_audio = tipo_descarga == "Solo Audio (MP3)"
-        ext = "mp3" if es_audio else "mp4"
-        mime_type = "audio/mpeg" if es_audio else "video/mp4"
+        ext_final = "mp3" if es_audio else "mp4"
+        tipo_mime = "audio/mpeg" if es_audio else "video/mp4"
 
-        with st.spinner("Analizando y procesando flujos multimedia..."):
+        with st.spinner("Conectando con YouTube de forma segura..."):
             try:
-                archivo_salida, meta = procesar_video(url_video, es_audio)
+                archivo_local, meta = procesar_descarga(enlace, es_audio)
 
-                # Convertir segundos a formato mm:ss
-                minutos = meta["duration"] // 60
-                segundos = meta["duration"] % 60
+                # Calcular la duración del video
+                minutos = meta["length"] // 60
+                segundos = meta["length"] % 60
 
-                # Mostrar tarjeta informativa del contenido listo
+                # Mostrar tarjeta informativa elegante
                 st.markdown(
                     f"""
                     <div class="info-box">
                         <b style="color:#FF4D4D;">📌 Contenido Listo:</b> {meta['title']}<br>
-                        <b>👤 Canal/Autor:</b> {meta['uploader']}<br>
+                        <b>👤 Canal/Autor:</b> {meta['author']}<br>
                         <b>⏱️ Duración:</b> {minutos}:{segundos:02d} minutos<br>
-                        <b>💎 Formato:</b> {tipo_descarga}
+                        <b>💎 Formato elegido:</b> {tipo_descarga}
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
 
-                # Botón elegante para salvar localmente en el ordenador del usuario
-                with open(meta["filename"], "rb") as file:
+                # 💡 RESPUESTA A TU DUDA: En las aplicaciones de navegador, Chrome decide dónde guardarlo.
+                # Al hacer clic en este botón verde, se abrirá la ventana normal de tu PC para que elijas
+                # en qué carpeta exacta deseas salvar el video o canción.
+                with open(archivo_local, "rb") as file:
                     st.download_button(
-                        label=f"📥 CLIC AQUÍ PARA GUARDAR .{ext.upper()}",
+                        label=f"📥 CLIC AQUÍ PARA GUARDAR EN TU PC (Elegir Carpeta)",
                         data=file,
-                        file_name=f"{meta['title']}.{ext}",
-                        mime=mime_type,
+                        file_name=f"{meta['title']}.{ext_final}",
+                        mime=tipo_mime,
                         use_container_width=True,
                     )
 
-                # Eliminar el archivo del servidor web inmediatamente para mantenerlo rápido
-                if os.path.exists(meta["filename"]):
-                    os.remove(meta["filename"])
+                # Limpieza de temporales
+                if os.path.exists(archivo_local):
+                    os.remove(archivo_local)
 
-            except Exception as e:
-                st.error(f"Error técnico en el procesamiento del enlace: {e}")
+            except Exception as error_det:
+                st.error(
+                    f"Hubo un problema al procesar con tu librería. Detalle: {error_det}"
+                )
