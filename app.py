@@ -120,33 +120,60 @@ url_video = st.text_input(
     placeholder="https://www.youtube.com/watch?v=...",
 )
 
+# Selector de formato elegante integrado en la interfaz
+tipo_descarga = st.selectbox(
+    "¿Qué formato deseas obtener?",
+    ["Video en Alta Calidad (MP4)", "Solo Audio (MP3)"],
+)
 
-# 4. Motor de descarga optimizado con yt-dlp
-def procesar_video(url):
-    # 'best' descarga la máxima fidelidad unificada lista para streaming directo en web
-    ydl_opts = {
-        "format": "best",
-        "outtmpl": "video_descargado.mp4",
+
+# 4. Motor de descarga optimizado con simulación de usuario seguro
+def procesar_video(url, es_audio):
+    # Parámetros para engañar al servidor de YouTube haciéndonos pasar por Chrome
+    opciones_seguras = {
         "quiet": True,
+        "no_warnings": True,
+        "nocheckcertificate": True,
+        "ignoreerrors": False,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "referer": "https://www.youtube.com/",
     }
+
+    if es_audio:
+        ydl_opts = {
+            **opciones_seguras,
+            "format": "bestaudio/best",
+            "outtmpl": "audio_descargado.mp3",
+        }
+    else:
+        ydl_opts = {
+            **opciones_seguras,
+            "format": "best",
+            "outtmpl": "video_descargado.mp4",
+        }
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
-        # Extraemos metadata útil para la tarjeta de información
         metadata = {
-            "title": info.get("title", "Video de YouTube"),
+            "title": info.get("title", "Contenido de YouTube"),
             "duration": info.get("duration", 0),
             "uploader": info.get("uploader", "Desconocido"),
+            "filename": filename,
         }
         return filename, metadata
 
 
 # 5. Lógica de ejecución e interfaz de respuesta
 if url_video:
-    if st.button("🔥 PROCESAR EN ALTA CALIDAD", use_container_width=True):
+    if st.button("🔥 PROCESAR ENLACE", use_container_width=True):
+        es_audio = tipo_descarga == "Solo Audio (MP3)"
+        ext = "mp3" if es_audio else "mp4"
+        mime_type = "audio/mpeg" if es_audio else "video/mp4"
+
         with st.spinner("Analizando y procesando flujos multimedia..."):
             try:
-                archivo_salida, meta = procesar_video(url_video)
+                archivo_salida, meta = procesar_video(url_video, es_audio)
 
                 # Convertir segundos a formato mm:ss
                 minutos = meta["duration"] // 60
@@ -159,25 +186,25 @@ if url_video:
                         <b style="color:#FF4D4D;">📌 Contenido Listo:</b> {meta['title']}<br>
                         <b>👤 Canal/Autor:</b> {meta['uploader']}<br>
                         <b>⏱️ Duración:</b> {minutos}:{segundos:02d} minutos<br>
-                        <b>💎 Calidad:</b> Máxima Original (Fidelidad Nativa)
+                        <b>💎 Formato:</b> {tipo_descarga}
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
 
                 # Botón elegante para salvar localmente en el ordenador del usuario
-                with open("video_descargado.mp4", "rb") as file:
+                with open(meta["filename"], "rb") as file:
                     st.download_button(
-                        label="📥 CLIC AQUÍ PARA GUARDAR EN TU PC",
+                        label=f"📥 CLIC AQUÍ PARA GUARDAR .{ext.upper()}",
                         data=file,
-                        file_name=f"{meta['title']}.mp4",
-                        mime="video/mp4",
+                        file_name=f"{meta['title']}.{ext}",
+                        mime=mime_type,
                         use_container_width=True,
                     )
 
                 # Eliminar el archivo del servidor web inmediatamente para mantenerlo rápido
-                if os.path.exists("video_descargado.mp4"):
-                    os.remove("video_descargado.mp4")
+                if os.path.exists(meta["filename"]):
+                    os.remove(meta["filename"])
 
             except Exception as e:
                 st.error(f"Error técnico en el procesamiento del enlace: {e}")
